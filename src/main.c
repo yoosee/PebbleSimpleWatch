@@ -6,19 +6,67 @@ static Layer *s_bg_layer, *s_date_layer, *s_hands_layer;
 // static TextLayer *s_time_layer;
 static TextLayer *s_weather_layer;
 static TextLayer *s_day_label, *s_num_label;
-// static BitmapLayer *s_background_layer;
+static BitmapLayer *s_background_layer;
+
+TextLayer *health_tlayer;
 
 static GPath *s_tick_paths[NUM_CLOCK_TICKS];
 static GPath *s_minute_arrow, *s_hour_arrow;
 static char s_num_buffer[4], s_day_buffer[6];
 
-// static GBitmap *s_background_bitmap;
+static GBitmap *s_background_bitmap;
 // static GFont s_time_font;
 static GFont s_weather_font;
 
+
+#if defined(PBL_HEALTH)
+void update_health()
+{
+    /* Create a long-lived buffer */
+    static char buffer[] = MAX_HEALTH_STR;
+
+    time_t start = time_start_of_today();
+    time_t end = time(NULL);  /* Now */
+
+    /* Check data is available */
+    HealthServiceAccessibilityMask result = health_service_metric_accessible(HealthMetricStepCount, start, end);
+    if(result & HealthServiceAccessibilityMaskAvailable)
+    {
+        HealthValue steps = health_service_sum(HealthMetricStepCount, start, end);
+
+        APP_LOG(APP_LOG_LEVEL_INFO, "Steps today: %d", (int)steps);
+        snprintf(buffer, sizeof(buffer), HEALTH_FMT_STR, (int) steps);
+    }
+    else
+    {
+        APP_LOG(APP_LOG_LEVEL_ERROR, "No data available!");
+        strcpy(buffer, "");
+    }
+    text_layer_set_text(health_tlayer, buffer);
+}
+
+static void health_handler(HealthEventType event, void *context)
+{
+    // Which type of event occured?
+    switch(event)
+    {
+        case HealthEventSignificantUpdate:
+            APP_LOG(APP_LOG_LEVEL_INFO, "New HealthService HealthEventSignificantUpdate event");
+            //break;
+        case HealthEventMovementUpdate:
+            APP_LOG(APP_LOG_LEVEL_INFO, "New HealthService HealthEventMovementUpdate event");
+            update_health();
+            break;
+        case HealthEventSleepUpdate:
+            APP_LOG(APP_LOG_LEVEL_INFO, "New HealthService HealthEventSleepUpdate event");
+            break;
+    }
+}
+#endif /* PBL_HEALTH */
+
 static void bg_update_proc(Layer *layer, GContext *ctx) {
-  graphics_context_set_fill_color(ctx, GColorBlack);
-  graphics_fill_rect(ctx, layer_get_bounds(layer), 0, GCornerNone);
+  //graphics_context_set_fill_color(ctx, GColorBlack);
+  //graphics_fill_rect(ctx, layer_get_bounds(layer), 0, GCornerNone);
   graphics_context_set_fill_color(ctx, GColorWhite);
   for (int i = 0; i < NUM_CLOCK_TICKS; ++i) {
     const int x_offset = PBL_IF_ROUND_ELSE(18, 0);
@@ -46,13 +94,18 @@ static void hands_update_proc(Layer *layer, GContext *ctx) {
   // second hand
   graphics_context_set_stroke_color(ctx, GColorWhite);
   graphics_draw_line(ctx, second_hand, center);
-  // minute and hour hand
+  
+  // minute hand
   graphics_context_set_fill_color(ctx, GColorWhite);
   graphics_context_set_stroke_color(ctx, GColorBlack);
   
   gpath_rotate_to(s_minute_arrow, TRIG_MAX_ANGLE * t->tm_min / 60);
   gpath_draw_filled(ctx, s_minute_arrow);
   gpath_draw_outline(ctx, s_minute_arrow);
+  
+  // hour hand
+  graphics_context_set_fill_color(ctx, GColorJazzberryJam);
+  graphics_context_set_stroke_color(ctx, GColorBlack);
   
   gpath_rotate_to(s_hour_arrow, (TRIG_MAX_ANGLE * (((t->tm_hour % 12) * 6) + (t->tm_min / 10))) / (12 * 6));
   gpath_draw_filled(ctx, s_hour_arrow);
@@ -79,6 +132,9 @@ static void handle_second_tick(struct tm *tick_time, TimeUnits units_changed) {
 }
 
 static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
+  // Update Health Steps every minute
+  update_health();
+  
   // Get weather update every 30 minutes
   if(tick_time->tm_min % 30 == 0) { 
     // Begin dictionary
@@ -129,13 +185,13 @@ static void main_window_load(Window *window) {
   // Get information about the Window
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
-/*
+
   // Create GBitmap and add it to Background Layer
   s_background_bitmap = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BACKGROUND);
   s_background_layer = bitmap_layer_create(bounds);
   bitmap_layer_set_bitmap(s_background_layer, s_background_bitmap);
   layer_add_child(window_layer, bitmap_layer_get_layer(s_background_layer));
-*/
+  
   // Create Background and add to main layer
   s_bg_layer = layer_create(bounds);
   layer_set_update_proc(s_bg_layer, bg_update_proc);
@@ -145,22 +201,22 @@ static void main_window_load(Window *window) {
   s_date_layer = layer_create(bounds);
   layer_set_update_proc(s_date_layer, date_update_proc);
   layer_add_child(window_layer, s_date_layer);
-  // day
+  // day of a week
   s_day_label = text_layer_create(PBL_IF_ROUND_ELSE(
-    GRect(63, 114, 27, 20),
-    GRect(46, 114, 27, 20)));
+    GRect(120, 65, 27, 20),
+    GRect(120, 85, 27, 20)));
   text_layer_set_text(s_day_label, s_day_buffer);
-  text_layer_set_background_color(s_day_label, GColorBlack);
-  text_layer_set_text_color(s_day_label, GColorWhite);
+  text_layer_set_background_color(s_day_label, GColorClear);
+  text_layer_set_text_color(s_day_label, GColorVividCerulean);
   text_layer_set_font(s_day_label, fonts_get_system_font(FONT_KEY_GOTHIC_18));
   layer_add_child(s_date_layer, text_layer_get_layer(s_day_label));
-  // num
+  // num of date
   s_num_label = text_layer_create(PBL_IF_ROUND_ELSE(
-    GRect(90, 114, 18, 20),
-    GRect(73, 114, 18, 20)));
+    GRect(120, 85, 18, 20),
+    GRect(120, 105, 18, 20)));
   text_layer_set_text(s_num_label, s_num_buffer);
-  text_layer_set_background_color(s_num_label, GColorBlack);
-  text_layer_set_text_color(s_num_label, GColorWhite);
+  text_layer_set_background_color(s_num_label, GColorClear);
+  text_layer_set_text_color(s_num_label, GColorCobaltBlue);
   text_layer_set_font(s_num_label, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
   layer_add_child(s_date_layer, text_layer_get_layer(s_num_label));
   
@@ -181,13 +237,12 @@ static void main_window_load(Window *window) {
   layer_add_child(window_layer, text_layer_get_layer(s_time_layer));
 */  
   
-  // Create templature layer
+  // Create weather and templature layer
   s_weather_layer = text_layer_create(
-  GRect(0, PBL_IF_ROUND_ELSE(125,120), bounds.size.w, 25));
+  GRect(0, PBL_IF_ROUND_ELSE(100,95), bounds.size.w, 50));
   
-  // Stlye the text
   text_layer_set_background_color(s_weather_layer, GColorClear);
-  text_layer_set_text_color(s_weather_layer, GColorWhite);
+  text_layer_set_text_color(s_weather_layer, GColorTiffanyBlue);
   text_layer_set_text_alignment(s_weather_layer, GTextAlignmentCenter);
   text_layer_set_text(s_weather_layer, "Loading...");
   
@@ -195,6 +250,17 @@ static void main_window_load(Window *window) {
   s_weather_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PERFECT_DOS_20));
   text_layer_set_font(s_weather_layer, s_weather_font);
   layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_weather_layer));
+  
+  // Create Health Steps layer
+  health_tlayer = text_layer_create(
+  GRect(0, PBL_IF_ROUND_ELSE(50, 40), bounds.size.w, 20));
+  
+  text_layer_set_background_color(health_tlayer, GColorClear);
+  text_layer_set_text_color(health_tlayer, GColorWhite);
+  text_layer_set_text_alignment(health_tlayer, GTextAlignmentCenter);
+  text_layer_set_font(health_tlayer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+  text_layer_set_text(health_tlayer, "00000");
+  layer_add_child(window_get_root_layer(window), text_layer_get_layer(health_tlayer));
   
   // Create Hands Layer and add it to the top of Root Window
   s_hands_layer = layer_create(bounds);
@@ -208,12 +274,15 @@ static void main_window_unload(Window *window) {
   layer_destroy(s_date_layer);
   text_layer_destroy(s_day_label);
   text_layer_destroy(s_num_label);
-  /*
-  text_layer_destroy(s_time_layer);
+  
   gbitmap_destroy(s_background_bitmap);
   bitmap_layer_destroy(s_background_layer);  
+  
+  /*
+  text_layer_destroy(s_time_layer);
   fonts_unload_custom_font(s_time_font);
   */
+  
   text_layer_destroy(s_weather_layer);
   fonts_unload_custom_font(s_weather_font);
   
@@ -237,7 +306,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
   }
 
   // Assemble full string and display
-  snprintf(weather_layer_buffer, sizeof(weather_layer_buffer), "%s, %s", temperature_buffer, conditions_buffer);
+  snprintf(weather_layer_buffer, sizeof(weather_layer_buffer), "%s\n%s", conditions_buffer, temperature_buffer);
   text_layer_set_text(s_weather_layer, weather_layer_buffer);
 }
 static void inbox_dropped_callback(AppMessageResult reason, void *context) {

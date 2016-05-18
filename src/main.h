@@ -5,7 +5,13 @@
 
 #define NUM_CLOCK_TICKS 11
 
+#ifndef HEALTH_FMT_STR
+    #define HEALTH_FMT_STR "%d"
+    #define MAX_HEALTH_STR "123456"   /* update to match HEALTH_FMT_STR */
+#endif /* HEALTH_FMT_STR */
+
 static const struct GPathInfo ANALOG_BG_POINTS[] = {
+  /*
   { 4,
     (GPoint []) {
       {68, 0},
@@ -21,6 +27,7 @@ static const struct GPathInfo ANALOG_BG_POINTS[] = {
       {72, 12}
     }
   },
+  */
   { 4, (GPoint []){
       {112, 10},
       {114, 12},
@@ -49,6 +56,7 @@ static const struct GPathInfo ANALOG_BG_POINTS[] = {
       {106, 147}
     }
   },
+    /*
   { 4, (GPoint []){
       {70, 155},
       {73, 155},
@@ -56,6 +64,7 @@ static const struct GPathInfo ANALOG_BG_POINTS[] = {
       {70, 167}
     }
   },
+  */
   { 4, (GPoint []){
       {32, 10},
       {30, 12},
@@ -84,21 +93,20 @@ static const struct GPathInfo ANALOG_BG_POINTS[] = {
       {38, 147}
     }
   },
-
 };
 
 static const GPathInfo MINUTE_HAND_POINTS = {
   3, (GPoint []) {
-    { -8, 20 },
-    { 8, 20 },
-    { 0, -80 }
+    { -6, 20 },
+    {  6, 20 },
+    {  0,-80 }
   }
 };
 
 static const GPathInfo HOUR_HAND_POINTS = {
   3, (GPoint []){
-    {-6, 20},
-    {6, 20},
-    {0, -60}
+    { -8, 20},
+    {  8, 20},
+    {  0,-50}
   }
 };

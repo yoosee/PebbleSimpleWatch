@@ -13,6 +13,14 @@
     "resources": {
         "media": [
             {
+                "file": "images/WatchFaceNum.png",
+                "name": "IMAGE_BACKGROUND",
+                "targetPlatforms": [
+                    "chalk"
+                ],
+                "type": "bitmap"
+            },
+            {
                 "file": "fonts/perfect-dos-vga.ttf",
                 "name": "FONT_PERFECT_DOS_20",
                 "targetPlatforms": null,
@@ -24,12 +32,6 @@
                 "name": "FONT_PERFECT_DOS_48",
                 "targetPlatforms": null,
                 "type": "font"
-            },
-            {
-                "file": "images/background.png",
-                "name": "IMAGE_BACKGROUND",
-                "targetPlatforms": null,
-                "type": "bitmap"
             }
         ]
     },
