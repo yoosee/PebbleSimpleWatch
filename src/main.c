@@ -20,6 +20,8 @@ static GFont s_weather_font;
 static GFont s_steps_font;
 static GFont s_date_font;
 
+static BitmapLayer *s_background_layer, *s_bt_icon_layer;
+static GBitmap *s_background_bitmap, *s_bt_icon_bitmap;
  
 #if defined(PBL_HEALTH)
 void update_health()
@@ -32,15 +34,12 @@ void update_health()
 
     /* Check data is available */
     HealthServiceAccessibilityMask result = health_service_metric_accessible(HealthMetricStepCount, start, end);
-    if(result & HealthServiceAccessibilityMaskAvailable)
-    {
+    if(result & HealthServiceAccessibilityMaskAvailable) {
         HealthValue steps = health_service_sum(HealthMetricStepCount, start, end);
 
         APP_LOG(APP_LOG_LEVEL_INFO, "Steps today: %d", (int)steps);
         snprintf(buffer, sizeof(buffer), HEALTH_FMT_STR, (int) steps);
-    }
-    else
-    {
+    } else {
         APP_LOG(APP_LOG_LEVEL_ERROR, "No data available!");
         strcpy(buffer, "");
     }
@@ -65,6 +64,17 @@ static void health_handler(HealthEventType event, void *context)
     }
 }
 #endif /* PBL_HEALTH */
+
+// Bluetooth connection indicator (shown when disconnected)
+static void bluetooth_callback(bool connected) {
+  // Show icon if disconnected
+  layer_set_hidden(bitmap_layer_get_layer(s_bt_icon_layer), connected);
+
+  if(!connected) {
+    // Issue a vibrating alert
+    vibes_double_pulse();
+  }
+}
 
 static void bg_update_proc(Layer *layer, GContext *ctx) {
   //graphics_context_set_fill_color(ctx, GColorBlack);
@@ -240,6 +250,14 @@ static void main_window_load(Window *window) {
   text_layer_set_text(health_tlayer, "00000");
   layer_add_child(window_get_root_layer(window), text_layer_get_layer(health_tlayer));
       
+  // Create Bluetooth layer
+  s_bt_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BT_DISCONNECTED);
+  s_bt_icon_layer = bitmap_layer_create(GRect(36, 78, 19, 24));
+  bitmap_layer_set_bitmap(s_bt_icon_layer, s_bt_icon_bitmap);
+  layer_add_child(window_get_root_layer(window), bitmap_layer_get_layer(s_bt_icon_layer));
+    // Show the correct state of the BT connection from the start
+  bluetooth_callback(connection_service_peek_pebble_app_connection());
+  
   // Create Hands Layer and add it to the top of Root Window
   s_hands_layer = layer_create(bounds);
   layer_set_update_proc(s_hands_layer, hands_update_proc);
@@ -279,11 +297,16 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 
   // If all data is available, use it
   if(temp_tuple && conditions_tuple) {
-    snprintf(temperature_buffer, sizeof(temperature_buffer), "%dC", (int)temp_tuple->value->int32);
+    snprintf(temperature_buffer, sizeof(temperature_buffer), "%dC", (int)temp_tuple->value->int32); // Celsius by default
+    //snprintf(temperature_buffer, sizeof(temperature_buffer), "%dF", (int) (temp_tuple->value->int32 * 9 / 5 + 32)); // Fahrenheit
     snprintf(conditions_buffer, sizeof(conditions_buffer), "%s", conditions_tuple->value->cstring);
   }
+  
   // Assemble full string and display
   snprintf(weather_layer_buffer, sizeof(weather_layer_buffer), "%s\n%s", conditions_buffer, temperature_buffer);
+  
+  APP_LOG(APP_LOG_LEVEL_INFO, "Weather: %s", weather_layer_buffer);
+  
   text_layer_set_text(s_weather_layer, weather_layer_buffer);
 }
 static void inbox_dropped_callback(AppMessageResult reason, void *context) {

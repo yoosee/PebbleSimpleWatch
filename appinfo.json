@@ -8,12 +8,18 @@
         "configurable",
         "health"
     ],
-    "companyName": "yoosee@gmail.com",
+    "companyName": "yoosee",
     "enableMultiJS": true,
     "longName": "Simple Watch",
     "projectType": "native",
     "resources": {
         "media": [
+            {
+                "file": "images/bluetooth_not_connected_icon_color.png",
+                "name": "IMAGE_BT_DISCONNECTED",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            },
             {
                 "characterRegex": "[0-9A-Za-z]",
                 "file": "fonts/ALDO.TTF",
@@ -59,6 +65,6 @@
     "uuid": "505443b4-b12e-40eb-9ea8-902d0d980adc",
     "versionLabel": "1.0",
     "watchapp": {
-        "watchface": false
+        "watchface": true
     }
 }
