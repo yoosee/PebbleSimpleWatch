@@ -1,4 +1,5 @@
 #include <pebble.h>
+#include <ctype.h>
 #include "main.h"
 
 static Window *s_main_window;
@@ -12,13 +13,14 @@ TextLayer *health_tlayer;
 
 static GPath *s_tick_paths[NUM_CLOCK_TICKS];
 static GPath *s_minute_arrow, *s_hour_arrow;
-static char s_num_buffer[4], s_day_buffer[6];
+static char s_num_buffer[4], s_day_buffer[12];
 
 static GBitmap *s_background_bitmap;
-// static GFont s_time_font;
 static GFont s_weather_font;
+static GFont s_steps_font;
+static GFont s_date_font;
 
-
+ 
 #if defined(PBL_HEALTH)
 void update_health()
 {
@@ -120,11 +122,8 @@ static void date_update_proc(Layer *layer, GContext *ctx) {
   time_t now = time(NULL);
   struct tm *t = localtime(&now);
   
-  strftime(s_day_buffer, sizeof(s_day_buffer), "%a", t);
+  strftime(s_day_buffer, sizeof(s_day_buffer), "%a %d", t);
   text_layer_set_text(s_day_label, s_day_buffer);
-  
-  strftime(s_num_buffer, sizeof(s_num_buffer), "%d", t);
-  text_layer_set_text(s_num_label, s_num_buffer);
 }
 
 static void handle_second_tick(struct tm *tick_time, TimeUnits units_changed) {
@@ -198,75 +197,54 @@ static void main_window_load(Window *window) {
   layer_add_child(window_layer, s_bg_layer);
   
   // Create date layer and add to main layer
+  
+  s_minute_arrow = gpath_create(&MINUTE_HAND_POINTS);
+  
   s_date_layer = layer_create(bounds);
   layer_set_update_proc(s_date_layer, date_update_proc);
   layer_add_child(window_layer, s_date_layer);
-  // day of a week
-  s_day_label = text_layer_create(PBL_IF_ROUND_ELSE(
-    GRect(120, 65, 27, 20),
-    GRect(120, 85, 27, 20)));
+  
+  s_day_label = text_layer_create(PBL_IF_BW_ELSE(
+    GRect(110, 62, 40, 20),
+    GRect(110, 82, 40, 20)));
   text_layer_set_text(s_day_label, s_day_buffer);
   text_layer_set_background_color(s_day_label, GColorClear);
-  text_layer_set_text_color(s_day_label, GColorVividCerulean);
-  text_layer_set_font(s_day_label, fonts_get_system_font(FONT_KEY_GOTHIC_18));
+  text_layer_set_text_color(s_day_label, GColorWhite);
+  s_date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_DATE_14));
+  text_layer_set_font(s_day_label, s_date_font);
   layer_add_child(s_date_layer, text_layer_get_layer(s_day_label));
-  // num of date
-  s_num_label = text_layer_create(PBL_IF_ROUND_ELSE(
-    GRect(120, 85, 18, 20),
-    GRect(120, 105, 18, 20)));
-  text_layer_set_text(s_num_label, s_num_buffer);
-  text_layer_set_background_color(s_num_label, GColorClear);
-  text_layer_set_text_color(s_num_label, GColorCobaltBlue);
-  text_layer_set_font(s_num_label, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
-  layer_add_child(s_date_layer, text_layer_get_layer(s_num_label));
-  
-  /*
-  // Create GFont
-  s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PERFECT_DOS_48));
-  
-  // Create the TextLayer with specific bounds
-  s_time_layer = text_layer_create(
-    GRect(0, PBL_IF_ROUND_ELSE(58, 52), bounds.size.w, 50));
-  // Improve the layout to be more like a watchface
-  text_layer_set_background_color(s_time_layer, GColorClear);
-  text_layer_set_text_color(s_time_layer, GColorBlack);
-  text_layer_set_text(s_time_layer, "00:00");
-  text_layer_set_font(s_time_layer, s_time_font);
-  text_layer_set_text_alignment(s_time_layer, GTextAlignmentCenter);
-  // Add it as a child layer to the Window's root layer
-  layer_add_child(window_layer, text_layer_get_layer(s_time_layer));
-*/  
+
   
   // Create weather and templature layer
   s_weather_layer = text_layer_create(
-  GRect(0, PBL_IF_ROUND_ELSE(100,95), bounds.size.w, 50));
+  GRect(0, PBL_IF_ROUND_ELSE(110,105), bounds.size.w, 50));
   
   text_layer_set_background_color(s_weather_layer, GColorClear);
   text_layer_set_text_color(s_weather_layer, GColorTiffanyBlue);
   text_layer_set_text_alignment(s_weather_layer, GTextAlignmentCenter);
-  text_layer_set_text(s_weather_layer, "Loading...");
+  text_layer_set_text(s_weather_layer, "LOADING");
   
-  // Create second custom font, apply it and add to Window
-  s_weather_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PERFECT_DOS_20));
+  s_weather_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_INFOTEXT_14));
   text_layer_set_font(s_weather_layer, s_weather_font);
   layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_weather_layer));
   
   // Create Health Steps layer
   health_tlayer = text_layer_create(
-  GRect(0, PBL_IF_ROUND_ELSE(50, 40), bounds.size.w, 20));
+  GRect(0, PBL_IF_ROUND_ELSE(45, 35), bounds.size.w, 20));
   
   text_layer_set_background_color(health_tlayer, GColorClear);
-  text_layer_set_text_color(health_tlayer, GColorWhite);
+  text_layer_set_text_color(health_tlayer, GColorIndigo);
   text_layer_set_text_alignment(health_tlayer, GTextAlignmentCenter);
-  text_layer_set_font(health_tlayer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+  s_steps_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_INFOTEXT_14));
+  text_layer_set_font(health_tlayer, s_steps_font);
   text_layer_set_text(health_tlayer, "00000");
   layer_add_child(window_get_root_layer(window), text_layer_get_layer(health_tlayer));
-  
+      
   // Create Hands Layer and add it to the top of Root Window
   s_hands_layer = layer_create(bounds);
   layer_set_update_proc(s_hands_layer, hands_update_proc);
   layer_add_child(window_layer, s_hands_layer);
-
+  
 }
 
 static void main_window_unload(Window *window) {  
@@ -304,7 +282,6 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     snprintf(temperature_buffer, sizeof(temperature_buffer), "%dC", (int)temp_tuple->value->int32);
     snprintf(conditions_buffer, sizeof(conditions_buffer), "%s", conditions_tuple->value->cstring);
   }
-
   // Assemble full string and display
   snprintf(weather_layer_buffer, sizeof(weather_layer_buffer), "%s\n%s", conditions_buffer, temperature_buffer);
   text_layer_set_text(s_weather_layer, weather_layer_buffer);

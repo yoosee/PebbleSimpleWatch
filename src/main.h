@@ -96,17 +96,27 @@ static const struct GPathInfo ANALOG_BG_POINTS[] = {
 };
 
 static const GPathInfo MINUTE_HAND_POINTS = {
-  3, (GPoint []) {
-    { -6, 20 },
-    {  6, 20 },
-    {  0,-80 }
+  8, (GPoint []) {
+    { -5, 10 },
+    { -3, 14 },
+    {  3, 14 },
+    {  5, 10 },
+    {  5,-76 },
+    {  3,-80 },
+    { -3,-80 },
+    { -5,-76 },  
   }
 };
 
 static const GPathInfo HOUR_HAND_POINTS = {
-  3, (GPoint []){
-    { -8, 20},
-    {  8, 20},
-    {  0,-50}
+  8, (GPoint []){
+    { -6,   6 },
+    { -4, 10 },
+    {  6, 10 },
+    {  6,   6 },
+    {  6,-56 },
+    {  4,-60 },
+    { -4,-60 },
+    { -6,-56 },  
   }
 };
